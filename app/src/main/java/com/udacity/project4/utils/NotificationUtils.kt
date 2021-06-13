@@ -13,6 +13,7 @@ import com.udacity.project4.locationreminders.ReminderDescriptionActivity
 import com.udacity.project4.locationreminders.reminderslist.ReminderDataItem
 
 private const val NOTIFICATION_CHANNEL_ID = BuildConfig.APPLICATION_ID + ".channel"
+private const val REMINDER_GROUP = BuildConfig.APPLICATION_ID + ".REMINDER_GROUP"
 
 fun sendNotification(context: Context, reminderDataItem: ReminderDataItem) {
     val notificationManager = context
@@ -47,6 +48,7 @@ fun sendNotification(context: Context, reminderDataItem: ReminderDataItem) {
         .setContentText(reminderDataItem.location)
         .setContentIntent(notificationPendingIntent)
         .setAutoCancel(true)
+        .setGroup(REMINDER_GROUP)
         .build()
 
     notificationManager.notify(getUniqueId(), notification)

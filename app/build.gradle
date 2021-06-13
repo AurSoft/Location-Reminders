@@ -16,6 +16,8 @@ android {
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        multiDexEnabled true
+        vectorDrawables.useSupportLibrary true
     }
     buildTypes {
         release {
@@ -54,10 +56,13 @@ dependencies {
 
     implementation 'com.google.code.gson:gson:2.8.5'
 
+    implementation 'com.android.support:multidex:1.0.3'
+
     // Architecture Components
     //Navigation dependencies
     implementation 'androidx.appcompat:appcompat:1.2.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.0.0-rc1'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
     kapt "androidx.lifecycle:lifecycle-compiler:$archLifecycleVersion"
     implementation "androidx.lifecycle:lifecycle-extensions:$archLifecycleVersion"
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$archLifecycleVersion"
@@ -122,5 +127,6 @@ dependencies {
     implementation "com.google.android.gms:play-services-location:$playServicesVersion"
     implementation "com.google.android.gms:play-services-maps:$playServicesVersion"
 
-
+    //Firebase AuthUI
+    implementation 'com.firebaseui:firebase-ui-auth:5.0.0'
 }

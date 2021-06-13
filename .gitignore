@@ -12,3 +12,6 @@
 /captures
 .externalNativeBuild
 .cxx
+/release.properties
+/debug.properties
+/.idea/vcs.xml
