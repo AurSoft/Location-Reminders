@@ -45,7 +45,7 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
     override val _viewModel: SaveReminderViewModel by inject()
     private lateinit var binding: FragmentSelectLocationBinding
     private lateinit var map: GoogleMap
-    private var selectedPoi: PointOfInterest? = null
+    private var selectedMarker: Marker? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -69,23 +69,21 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
 
     override fun onMapReady(p0: GoogleMap) {
         map = p0
-        //setMapLongClick(map)
+        setMapLongClick(map)
         setPoiClick(map)
         setMapStyle(map)
-        addPreviouslySelectedPoi()
+        _viewModel.selectedMarker.value?.let {
+            addPreviouslySelectedMarker(it.position, it.title)
+        }
         enableMyLocation()
         getDeviceLocation()
     }
 
-    private fun addPreviouslySelectedPoi(){
-        val poi = _viewModel.selectedPOI.value
-        poi?.let {
-            map.addMarker(
+    private fun addPreviouslySelectedMarker(position: LatLng, title: String) {
+        map.addMarker(
                 MarkerOptions()
-                    .position(it.latLng)
-                    .title(it.name))
-        }
-
+                    .position(position)
+                    .title(title))
     }
 
     private fun getDeviceLocation() {
@@ -118,13 +116,12 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
     private fun setPoiClick(map: GoogleMap) {
         map.setOnPoiClickListener { poi ->
             map.clear() // we want the user to select only a location to remind
-            selectedPoi = poi
-            val poiMarker = map.addMarker(
+            selectedMarker = map.addMarker(
                 MarkerOptions()
                     .position(poi.latLng)
                     .title(poi.name)
             )
-            poiMarker.showInfoWindow() //immediately show the info window
+            selectedMarker?.showInfoWindow() //immediately show the info window
         }
     }
 
@@ -148,10 +145,10 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
     }
 
     private fun onLocationSelected() {
-        _viewModel.selectedPOI.value = selectedPoi
-        _viewModel.reminderSelectedLocationStr.value = selectedPoi?.name
-        _viewModel.latitude.value = selectedPoi?.latLng?.latitude
-        _viewModel.longitude.value = selectedPoi?.latLng?.longitude
+        _viewModel.selectedMarker.value = selectedMarker
+        _viewModel.reminderSelectedLocationStr.value = selectedMarker?.title
+        _viewModel.latitude.value = selectedMarker?.position?.latitude
+        _viewModel.longitude.value = selectedMarker?.position?.longitude
         _viewModel.navigationCommand.value = NavigationCommand.Back
     }
 
@@ -191,8 +188,7 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
         if(isPermissionGranted()) {
             map.isMyLocationEnabled = true
         } else {
-            ActivityCompat.requestPermissions(
-                requireActivity(),
+            requestPermissions(
                 arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
                 REQUEST_LOCATION_PERMISSION
             )
@@ -211,6 +207,24 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
             if (grantResults.isNotEmpty() && (grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
                 enableMyLocation()
             }
+        }
+    }
+
+    private fun setMapLongClick(map: GoogleMap) {
+        map.setOnMapLongClickListener { latLng ->
+            map.clear() // we want the user to select only a location to remind
+            val snippet = String.format(
+                Locale.getDefault(),
+                "Lat: %1$.5f, Long: %2$.5f",
+                latLng.latitude,
+                latLng.longitude
+            )
+            selectedMarker = map.addMarker(
+                MarkerOptions()
+                    .position(latLng)
+                    .title(getString(R.string.dropped_pin))
+                    .snippet(snippet)
+            )
         }
     }
 
