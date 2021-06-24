@@ -177,8 +177,8 @@ class SaveReminderFragment : BaseFragment() {
         locationSettingsResponseTask.addOnFailureListener { exception ->
             if (exception is ResolvableApiException && resolve){ //the problem can be resolved by prompting the user an activity to turn on location
                 try {
-                    exception.startResolutionForResult(requireActivity(),
-                        REQUEST_TURN_DEVICE_LOCATION_ON)
+                    startIntentSenderForResult(exception.resolution.intentSender, REQUEST_TURN_DEVICE_LOCATION_ON,
+                        null, 0, 0, 0, null)
                 } catch (sendEx: IntentSender.SendIntentException) {
                     Log.d(TAG, "Error getting location settings resolution: " + sendEx.message)
                 }
@@ -194,8 +194,7 @@ class SaveReminderFragment : BaseFragment() {
         locationSettingsResponseTask.addOnCompleteListener {
             if ( it.isSuccessful ) {
                 if(_viewModel.validateEnteredData(reminderDataItem)) {
-                    _viewModel.saveReminder(reminderDataItem)
-                    addGeofenceForReminder()
+                    addGeofenceForReminderAndSaveIt()
                 }
             }
         }
@@ -252,7 +251,7 @@ class SaveReminderFragment : BaseFragment() {
      * is now "active."
      */
     @SuppressLint("MissingPermission")
-    private fun addGeofenceForReminder() {
+    private fun addGeofenceForReminderAndSaveIt() {
         val geofence = Geofence.Builder()
             .setRequestId(reminderDataItem.id)
             .setCircularRegion(
@@ -272,9 +271,10 @@ class SaveReminderFragment : BaseFragment() {
         geofencingClient.addGeofences(geofencingRequest, geofencePendingIntent)?.run {
             addOnSuccessListener {
                 Log.d("Add Geofence", "Geofence added")
+                _viewModel.saveReminder(reminderDataItem)
             }
             addOnFailureListener {
-                Toast.makeText(requireContext(), R.string.geofences_not_added,
+                Toast.makeText(requireContext(), R.string.error_adding_geofence,
                     Toast.LENGTH_SHORT).show()
                 if ((it.message != null)) {
                     Log.w(TAG, it.message!!)
