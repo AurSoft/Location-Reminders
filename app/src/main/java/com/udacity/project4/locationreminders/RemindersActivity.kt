@@ -52,7 +52,9 @@ class RemindersActivity : AppCompatActivity() {
                 val intent = Intent(this, AuthenticationActivity::class.java)
                 // Once authenticated, we don't want the user to still be seeing reminders list, unless the user logs in again
                 intent.flags =
-                    Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_CLEAR_TASK
+
+
                 startActivity(intent)
             }
         })
