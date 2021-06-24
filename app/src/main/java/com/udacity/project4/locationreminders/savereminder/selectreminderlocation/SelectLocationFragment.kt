@@ -12,18 +12,14 @@ import android.location.Location
 import android.os.Bundle
 import android.util.Log
 import android.view.*
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.databinding.DataBindingUtil
-import com.google.android.gms.common.api.ApiException
-import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.*
-import com.google.android.material.snackbar.Snackbar
 import com.udacity.project4.R
 import com.udacity.project4.base.BaseFragment
 import com.udacity.project4.base.NavigationCommand
@@ -36,7 +32,6 @@ import java.util.*
 class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
 
     companion object {
-        private const val REQUEST_LOCATION_PERMISSION = 1
         private const val DEFAULT_ZOOM = 15f
         private const val TAG = "SelectLocationFragment"
     }
@@ -69,14 +64,11 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
 
     override fun onMapReady(p0: GoogleMap) {
         map = p0
-        setMapLongClick(map)
-        setPoiClick(map)
         setMapStyle(map)
         _viewModel.selectedMarker.value?.let {
             addPreviouslySelectedMarker(it.position, it.title)
         }
         enableMyLocation()
-        getDeviceLocation()
     }
 
     private fun addPreviouslySelectedMarker(position: LatLng, title: String) {
@@ -187,29 +179,14 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
     private fun enableMyLocation() {
         if(isPermissionGranted()) {
             map.isMyLocationEnabled = true
+            getDeviceLocation()
+            setMapLongClick(map)
+            setPoiClick(map)
         } else {
-            requestPermissions(
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                REQUEST_LOCATION_PERMISSION
-            )
+            _viewModel.navigationCommand.postValue(NavigationCommand.Back) //we don't want the user to be able to be in this fragment if permissions are not granted
         }
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        // Check if location permissions are granted and if so enable the
-        // location data layer.
-        if (requestCode == REQUEST_LOCATION_PERMISSION) {
-            if (grantResults.isNotEmpty() && (grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
-                enableMyLocation()
-                getDeviceLocation()
-            }
-        }
-    }
 
     private fun setMapLongClick(map: GoogleMap) {
         map.setOnMapLongClickListener { latLng ->
