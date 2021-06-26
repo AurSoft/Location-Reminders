@@ -183,7 +183,7 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
             setMapLongClick(map)
             setPoiClick(map)
         } else {
-            _viewModel.navigationCommand.postValue(NavigationCommand.Back) //we don't want the user to be able to be in this fragment if permissions are not granted
+            _viewModel.navigationCommand.value = NavigationCommand.Back //we don't want the user to be able to be in this fragment if permissions are not granted
         }
     }
 
