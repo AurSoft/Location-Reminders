@@ -4,14 +4,17 @@ package com.udacity.project4.locationreminders.savereminder.selectreminderlocati
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.content.IntentSender
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.location.Location
 import android.os.Bundle
 import android.util.Log
 import android.view.*
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.databinding.DataBindingUtil
 import com.google.android.gms.location.*
@@ -20,6 +23,7 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.*
+import com.google.android.material.snackbar.Snackbar
 import com.udacity.project4.R
 import com.udacity.project4.base.BaseFragment
 import com.udacity.project4.base.NavigationCommand
@@ -32,12 +36,16 @@ import java.util.*
 class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
 
     companion object {
+        private const val REQUEST_LOCATION_PERMISSION = 1
         private const val DEFAULT_ZOOM = 15f
         private const val TAG = "SelectLocationFragment"
+        private const val FIRST_TIME_LOC_REQ = "FIRST_TIME_LOC_REQ"
     }
 
     //Use Koin to get the view model of the SaveReminder
     override val _viewModel: SaveReminderViewModel by inject()
+    private var sharedPreferences: SharedPreferences? = null
+    private lateinit var snackbar: Snackbar
     private lateinit var binding: FragmentSelectLocationBinding
     private lateinit var map: GoogleMap
     private var selectedMarker: Marker? = null
@@ -62,12 +70,28 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
         return binding.root
     }
 
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        sharedPreferences = activity?.getPreferences(Context.MODE_PRIVATE)
+        snackbar = Snackbar.make(
+                binding.root,
+                "",
+                Snackbar.LENGTH_INDEFINITE)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        snackbar.dismiss()
+    }
+
     override fun onMapReady(p0: GoogleMap) {
         map = p0
         setMapStyle(map)
         _viewModel.selectedMarker.value?.let {
             addPreviouslySelectedMarker(it.position, it.title)
         }
+        setMapLongClick(map)
+        setPoiClick(map)
         enableMyLocation()
     }
 
@@ -169,6 +193,36 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
         else -> super.onOptionsItemSelected(item)
     }
 
+    override fun onRequestPermissionsResult(
+            requestCode: Int,
+            permissions: Array<out String>,
+            grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        // Check if location permissions are granted and if so enable the
+        // location data layer.
+        if (requestCode == REQUEST_LOCATION_PERMISSION) {
+            if (grantResults.isNotEmpty() && (grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+                enableMyLocation()
+            } else {
+                if(!shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) && isFirstTimeRequest()){
+                    enableMyLocation()
+                }
+                if(!shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) && !isFirstTimeRequest()){
+                    writeToFirstTimeLocReqPreference(false)
+                    _viewModel.showSnackBarInt.value = R.string.permission_denied_explanation_no_settings
+                }
+                if(shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION)){
+                    writeToFirstTimeLocReqPreference(false)
+                    snackbar.setText(R.string.permission_denied_explanation)
+                            .setAction(R.string.settings) {
+                                enableMyLocation()
+                            }.show()
+                }
+            }
+        }
+    }
+
     private fun isPermissionGranted() : Boolean {
         return ContextCompat.checkSelfPermission(
             requireActivity(),
@@ -180,13 +234,13 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
         if(isPermissionGranted()) {
             map.isMyLocationEnabled = true
             getDeviceLocation()
-            setMapLongClick(map)
-            setPoiClick(map)
-        } else {
-            _viewModel.navigationCommand.value = NavigationCommand.Back //we don't want the user to be able to be in this fragment if permissions are not granted
+        } else  {
+            requestPermissions(
+                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                    REQUEST_LOCATION_PERMISSION
+            )
         }
     }
-
 
     private fun setMapLongClick(map: GoogleMap) {
         map.setOnMapLongClickListener { latLng ->
@@ -206,4 +260,20 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
         }
     }
 
+    private fun isFirstTimeRequest(): Boolean {
+        if (sharedPreferences == null) {
+            Log.d(TAG, "shared preferences null. First time request")
+            writeToFirstTimeLocReqPreference(true)
+        }
+        return sharedPreferences!!.getBoolean(FIRST_TIME_LOC_REQ, true)
+    }
+
+    private fun writeToFirstTimeLocReqPreference(isFirstTime: Boolean) {
+        sharedPreferences?.let {
+            with(it.edit()) {
+                putBoolean(FIRST_TIME_LOC_REQ, isFirstTime)
+                apply()
+            }
+        }
+    }
 }

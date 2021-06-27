@@ -84,8 +84,8 @@ class SaveReminderFragment : BaseFragment() {
             Snackbar.LENGTH_INDEFINITE)
 
         binding.selectLocation.setOnClickListener {
-            _viewModel.doSaveReminder = false
-            checkPermissionsAndSelectLocation()
+            _viewModel.navigationCommand.value =
+                    NavigationCommand.To(SaveReminderFragmentDirections.actionSaveReminderFragmentToSelectLocationFragment())
         }
 
         binding.saveReminder.setOnClickListener {
@@ -95,7 +95,6 @@ class SaveReminderFragment : BaseFragment() {
             val latitude = _viewModel.latitude.value
             val longitude = _viewModel.longitude.value
             reminderDataItem = ReminderDataItem(title, description, location, latitude, longitude)
-            _viewModel.doSaveReminder = true
             checkPermissionsSaveReminderAndStartGeofencing()
         }
     }
@@ -114,11 +113,7 @@ class SaveReminderFragment : BaseFragment() {
         super.onActivityResult(requestCode, resultCode, data)
         Log.d(TAG, requestCode.toString())
         if (requestCode == REQUEST_TURN_DEVICE_LOCATION_ON) {
-            if (_viewModel.doSaveReminder) {
-                checkDeviceLocationSettingsSaveReminderAndStartGeofence(false)
-            } else {
-                checkDeviceLocationSettingsAndSelectLocation(false)
-            }
+            checkDeviceLocationSettingsSaveReminderAndStartGeofence(false)
         }
     }
 
@@ -140,7 +135,7 @@ class SaveReminderFragment : BaseFragment() {
                     grantResults[BACKGROUND_LOCATION_PERMISSION_INDEX] ==
                     PackageManager.PERMISSION_DENIED))
         {
-            snackbar.setText(R.string.permission_denied_explanation)
+            snackbar.setText(R.string.permission_denied_explanation_2)
                 .setAction(R.string.settings) {
                     startActivity(Intent().apply {
                         action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
@@ -148,10 +143,8 @@ class SaveReminderFragment : BaseFragment() {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK
                     })
                 }.show()
-        } else if(_viewModel.doSaveReminder) {
-            checkDeviceLocationSettingsSaveReminderAndStartGeofence()
         } else {
-            checkDeviceLocationSettingsAndSelectLocation()
+            checkDeviceLocationSettingsSaveReminderAndStartGeofence()
         }
     }
 
@@ -172,70 +165,12 @@ class SaveReminderFragment : BaseFragment() {
         }
     }
 
-    /**
-     * Starts the permission check and select reminder location process
-     */
-    private fun checkPermissionsAndSelectLocation() {
-        if (foregroundAndBackgroundLocationPermissionApproved()) {
-            checkDeviceLocationSettingsAndSelectLocation()
-        } else {
-            requestForegroundAndBackgroundLocationPermissions()
-        }
-    }
-
     /*
     *  Uses the Location Client to check the current state of location settings, gives the user
     *  the opportunity to turn on location services within our app and then try to save a reminder
     *  after validating it
     */
     private fun checkDeviceLocationSettingsSaveReminderAndStartGeofence(resolve:Boolean = true) {
-        // Check that the device's location is on
-        val locationSettingsResponseTask = checkDeviceLocationSettings(resolve)
-        locationSettingsResponseTask.addOnFailureListener { exception ->
-            if (exception !is ResolvableApiException || !resolve)  { //no activity can be shown, so we use a snackbar to alert the user
-                snackbar.setText(R.string.location_required_error)
-                    .setAction(android.R.string.ok) {
-                        checkDeviceLocationSettingsSaveReminderAndStartGeofence()
-                    }.show()
-            }
-        }
-        locationSettingsResponseTask.addOnCompleteListener {
-            if ( it.isSuccessful ) {
-                if(_viewModel.validateEnteredData(reminderDataItem)) {
-                    addGeofenceForReminderAndSaveIt()
-                }
-            }
-        }
-    }
-
-    /*
-    *  Uses the Location Client to check the current state of location settings, gives the user
-    *  the opportunity to turn on location services within our app and then try to select a
-    *  location for the reminder
-    */
-    private fun checkDeviceLocationSettingsAndSelectLocation(resolve:Boolean = true) {
-        // Check that the device's location is on
-        val locationSettingsResponseTask = checkDeviceLocationSettings(resolve)
-        locationSettingsResponseTask.addOnFailureListener { exception ->
-            if (exception !is ResolvableApiException || !resolve)   //no activity can be shown, so we use a snackbar to alert the user
-                snackbar.setText(R.string.location_required_error)
-                    .setAction(android.R.string.ok) {
-                        checkDeviceLocationSettingsAndSelectLocation()
-                    }.show()
-        }
-        locationSettingsResponseTask.addOnCompleteListener {
-            if ( it.isSuccessful ) {
-                _viewModel.navigationCommand.value =
-                    NavigationCommand.To(SaveReminderFragmentDirections.actionSaveReminderFragmentToSelectLocationFragment())
-            }
-        }
-    }
-
-    /*
-    *  Uses the Location Client to check the current state of location settings, and gives the user
-    *  the opportunity to turn on location services within our app.
-    */
-    private fun checkDeviceLocationSettings(resolve:Boolean = true): Task<LocationSettingsResponse> {
         // Check that the device's location is on
         val locationRequest = LocationRequest.create().apply {
             priority = LocationRequest.PRIORITY_LOW_POWER
@@ -249,14 +184,24 @@ class SaveReminderFragment : BaseFragment() {
             if (exception is ResolvableApiException && resolve){ //the problem can be resolved by prompting the user an activity to turn on location
                 try {
                     startIntentSenderForResult(exception.resolution.intentSender, REQUEST_TURN_DEVICE_LOCATION_ON,
-                        null, 0, 0, 0, null)
+                            null, 0, 0, 0, null)
                 } catch (sendEx: IntentSender.SendIntentException) {
                     Log.d(TAG, "Error getting location settings resolution: " + sendEx.message)
                 }
+            } else {
+                snackbar.setText(R.string.location_required_error)
+                        .setAction(android.R.string.ok) {
+                            checkDeviceLocationSettingsSaveReminderAndStartGeofence()
+                        }.show()
             }
         }
-
-        return locationSettingsResponseTask
+        locationSettingsResponseTask.addOnCompleteListener {
+            if ( it.isSuccessful ) {
+                if(_viewModel.validateEnteredData(reminderDataItem)) {
+                    addGeofenceForReminderAndSaveIt()
+                }
+            }
+        }
     }
 
     /*
